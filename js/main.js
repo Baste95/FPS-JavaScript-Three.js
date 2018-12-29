@@ -15,7 +15,7 @@ var sprint = false;
 const fov = 90, aspect = window.innerWidth / window.innerHeight, near = 0.1, far = 1000; 
 
 //Attributs pour le personnages
-const playerHeight = 1.8, playerSpeed = 0.25, playerSprint = 0.45, playerSensibility = 0.02;
+const playerHeight = 1.8, playerSpeed = 0.25, playerSprint = 0.45, playerSensibility = 0.005;
 
 //Spwans
 var spawnX = new Array();
@@ -27,10 +27,16 @@ spawnX[3] = 0;
 spawnZ[0] = 0;
 spawnZ[1] = 0;
 spawnZ[2] = 40;
-spawnZ[3] = -40;
+spawnZ[3] = -40;     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! A CORRIGER
 
-//Variables X et Y des mouvements de la souris
-var moveX, moveY, halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+// Variable pour le canvas du jeu, obligatoire pour les fonctions du pointer lock
+var canvas;
+
+//Audio du jeu
+var listener, walkingSound, shootSound;
+var loaderWalkingSound = new THREE.AudioLoader(), loaderShootSound = new THREE.AudioLoader();
+
+
 
 function init() {
     
@@ -52,9 +58,12 @@ function init() {
 	
 	//Camera
 	camera = new THREE.PerspectiveCamera(fov, aspect, near, far);    //Initialise le fov, l'aspect, near et far
-	var random = Math.floor(Math.random() * 4); //Nombre random entre 0 et 3 inclus pour déterminer le spawn
-	camera.position.set(spawnX[random],playerHeight,spawnZ[random]);
-	camera.lookAt(new THREE.Vector3(0,playerHeight,0));
+	var random = Math.floor(Math.random() * 3); //Nombre random entre 0 et 3 inclus pour déterminer le spawn !!!!!!!!!!!!!!!!!!!!!!!A CORRIGER
+	camera.position.set(spawnX[random],playerHeight,spawnZ[random]); //Place la caméra dans le jeu
+	camera.lookAt(new THREE.Vector3(0,playerHeight,0)); //Fait regarde la caméra le centre de la map lors du spawn
+	camera.rotation.order = "YXZ"; // Change l'ordre de rotation de la caméra (obligatoire pour les mouvements)
+	listener = new THREE.AudioListener(); //Permet d'entendre du son
+	camera.add(listener); //Ajoute l'objet pour entendre des sons à la caméra
 	
 	//Rendue
 	renderer = new THREE.WebGLRenderer();     // Crée le rendue de la scène en utilisant WebGL
@@ -79,7 +88,9 @@ function init() {
 	//Controles du joueurs
 	window.addEventListener('keydown', keyDown); //Lorsque une touche du clavier est enclenchée
 	window.addEventListener('keyup', keyUp); //Lorsque une touche du clavier est désenclenchée
-	window.addEventListener('mousemove', mouseMouvement); //Lorsque un mouvement de la souris est capté
+	//window.addEventListener('mousemove', mouseMouvement); //Lorsque un mouvement de la souris est capté
+	
+	
 
 	//Fenêtre de jeu
 	document.body.appendChild(renderer.domElement);      //Introduit le jeu dans le html
@@ -87,10 +98,44 @@ function init() {
 	
 	//Fonction qui génère le jeu
 	createWorld(); //Introduit les objets et modèles dans la scène
-	animation(); //Fonction pour l'aniamtion de la scène
+	
+	
+	
+	canvas = document.getElementsByTagName("canvas");
+	canvas[0].requestPointerLock = canvas[0].requestPointerLock ||
+                            canvas[0].mozRequestPointerLock ||
+                            canvas[0].webkitPointerLock;
+
+	canvas[0].onclick = function() {
+		canvas[0].requestPointerLock();
+	};
+	
+	document.addEventListener('pointerlockchange', changeCallback, false);
+	document.addEventListener('mozpointerlockchange', changeCallback, false);
+	document.addEventListener('webkitpointerlockchange', changeCallback, false);
+	
+	document.exitPointerLock = document.exitPointerLock ||
+			   document.mozExitPointerLock ||
+			   document.webkitExitPointerLock;
+	document.exitPointerLock();
+	
+	animation(); //Fonction pour l'animation de la scène
     
 };
 
+
+function changeCallback() {
+  if (document.pointerLockElement === canvas[0] ||
+      document.mozPointerLockElement === canvas[0] ||
+	  document.webkitPointerLockElement === canvas[0]
+	  ) {
+    console.log('The pointer lock status is now locked');
+    document.addEventListener("mousemove", mouseMouvement, false);
+  } else {
+    console.log('The pointer lock status is now unlocked');  
+    document.removeEventListener("mousemove", mouseMouvement, false);
+  }
+}
 
 function keyDown(event){
 	switch ( event.keyCode ) {
@@ -141,7 +186,7 @@ function keyUp(event){
 		case 68: // Touche D
 			moveRight = false;
 			break;
-		case 16:
+		case 16: // Touche Shift
 			sprint = false;
 			break;
 	}
@@ -149,18 +194,29 @@ function keyUp(event){
 };
 
 function mouseMouvement(event){
-	moveX = event.clientX - halfX;
-	moveY = event.clientY - halfY;
+	var moveX = (event.movementX             ||
+             event.mozMovementX          ||
+             event.webkitMovementX       ||
+             0);
+    var moveY =( event.movementY             ||
+             event.mozMovementY          ||
+             event.webkitMovementY       || 
+			 0) ;
+	
+	//Mouvements de la caméra
+	camera.rotation.y += -(moveX * playerSensibility);
+	camera.rotation.x += Math.max( - (Math.PI / 2), Math.min( Math.PI / 2,-(moveY * playerSensibility)));
 }
+
 
 
 
 function createWorld(){
 
 	//Axe Helper
-	
 	var axes = new THREE.AxisHelper(100);
 	scene.add( axes );
+	
 	
 	//Floor
 	var floor =  new THREE.Mesh(new THREE.PlaneGeometry( 200, 200, 20, 20), new THREE.MeshPhongMaterial( { side: THREE.DoubleSide, map: new THREE.TextureLoader().load( "textures/grass.jpg" )} ));
@@ -168,12 +224,9 @@ function createWorld(){
 	//floor.castShadow = true;
 	floor.receiveShadow = true;
 	scene.add(floor);
-	
-	// Models
 
-	
-	
-	
+
+	// Models
 	var fence = new THREE.ObjectLoader();
 	fence.load("objects/Fence/chain-fence.json", function ( obj ) {
 		
@@ -200,6 +253,33 @@ function createWorld(){
 		obj2.position.set(10,0,0);
 		scene.add(obj2);
 	});
+	
+	
+	//Sons du jeu (bruitages et musique d'ambiance)
+	var ambientSound = new THREE.Audio(listener); //L'objet qui contient la musique d'ambiance
+	scene.add(ambientSound); //Ajout de l'objet dans la scnène
+	
+	var loaderAmbientSound = new THREE.AudioLoader(); //Le loader de la musique d'ambiance
+	loaderAmbientSound.load(
+	'audio/ambientSound.mp3',
+	function ( audioBuffer ) {
+		ambientSound.setBuffer( audioBuffer );
+		ambientSound.setLoop(true);
+		ambientSound.setVolume(0.1);
+		ambientSound.play();
+	});
+	
+	
+	walkingSound = new THREE.Audio(listener); //L'objet contenant le bruitages des bruits de pas
+	scene.add(walkingSound);//Ajout de l'objet dans la scnène
+	
+	
+	
+	
+
+	
+	
+	
 }
 
 
@@ -235,11 +315,18 @@ function animation(){
     if(moveRight){
 	camera.translateX(playerSpeed);
     }
-
-	//Mouvement de la caméra
-	camera.rotation.x = Math.max( - (Math.PI / 2), Math.min( Math.PI / 2,moveY * playerSensibility));
-	camera.rotation.y = moveX * playerSensibility;
 	
+	//Bruitage de pas
+	if(moveForward || moveBackward || moveLeft || moveRight){
+		loaderWalkingSound.load(
+		'audio/walkingSound.mp3',
+		function ( audioBuffer ) {
+			walkingSound.setBuffer( audioBuffer );
+			
+			walkingSound.setVolume(0.5);
+			walkingSound.play();
+		});
+	}
 	
 	renderer.render(scene, camera);
 }
@@ -251,6 +338,7 @@ function onWindowResize() {
 		camera.updateProjectionMatrix();
 		renderer.setSize( window.innerWidth, window.innerHeight );
 }
+
 
 
 
