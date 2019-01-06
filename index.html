@@ -1,21 +1,39 @@
-﻿<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
 	<head>
-		<title>My first three.js app</title>
-		<style>
-			body { margin: 0; }
-			canvas { width: 100%; height: 100% }
-		</style>
+		<title>Projet JS</title>
+		<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+		<!--><script src="//threejs.org/build/three.js"></script><!-->
 		<script src="js/three.min.js"></script>
-		<script src="js/FirstPersonControls.js"></script>
-		<script src="js/MTLLoader.js"></script>
-		<script src="js/OBJLoader.js"></script>
-        <script type="module" src="js/main.js"></script>
-		
+		<script src="js/client_world.js"></script>
 	</head>
-
+	
 	<body>
-
-
-    </body>
+		<div id="container"></div>
+		<script> 
+		var socket = io(); 
+		
+		
+		socket.on('updatePosition', function(data){
+			updatePlayer(data);
+		});
+		socket.on('connect', function(){
+			loadWorld();
+			socket.emit('requestOldPlayers', {});
+		});
+		socket.on('createPlayer', function(data){
+			createPlayer(data);
+		});
+		socket.on('addOtherPlayer', function(data){
+			addOtherPlayer(data);
+		});
+		socket.on('removeOtherPlayer', function(data){
+			removeOtherPlayer(data);
+		});
+				
+		</script>
+	</body>
+	
 </html>
+	
+	
