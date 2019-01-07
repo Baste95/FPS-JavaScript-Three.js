@@ -5,7 +5,9 @@ Projet en Développement Web JavaScript Three.js FPS
 Librairies: Node.js Express.Js Socket.io Three.js
 
 Pelmard Bastien
-Octay Erkan 
+
+OKtay Erkan 
+
 Sharif Mohammad
 
 Lancer la commande: node app.js
